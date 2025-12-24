@@ -1,0 +1,385 @@
+import React, { useEffect, useState } from 'react';
+import useAxiosApi from '../../hooks/useAxiosApi';
+import Swal from 'sweetalert2';
+import { t, setLang, getLang, onLangChange } from '../../translation';
+
+export default function Header() {
+  const [lang, setLangState] = useState(getLang());
+  useEffect(() => {
+    const off = onLangChange(() => setLangState(getLang()));
+    return off;
+  }, []);
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem('accessToken')
+  );
+  const [nickName, setNickName] = useState(
+    localStorage.getItem('nickName') || ''
+  );
+
+  const { execute: authExecute } = useAxiosApi('/auth', 'POST');
+  const { execute: registerExecute } = useAxiosApi('/auth/register', 'POST');
+  const { execute: userExecute } = useAxiosApi('/user', 'GET');
+
+  const navText = {
+    goods: t('page.header.nav.goods'),
+    assets: t('page.header.nav.assets'),
+    market: t('page.header.nav.market'),
+    mypage: t('page.header.nav.mypage'),
+    logout: t('page.header.nav.logout'),
+    dashboard: t('page.header.nav.dashboard'),
+    kpopWorld: t('page.header.nav.kpopWorld'),
+    etriWallet: t('page.header.nav.etriWallet'),
+    login: t('page.header.nav.login'),
+  };
+
+  const handleLogin = async () => {
+    const savedEmail = localStorage.getItem('rememberedEmail') || '';
+    Swal.fire({
+      title: '',
+      html: `
+        <div class="w-full max-w-md mx-auto">
+          <div class="mb-3 flex items-center justify-center">
+            <img src="/image/dataspace.jpg" alt="avataroad" class="h-16" />
+          </div>
+          <h2 class="text-2xl font-semibold text-gray-900 text-center">${t('page.auth.login.title')}</h2>
+          <p class="text-sm text-gray-500 text-center mt-1">${t('page.auth.login.desc')}</p>
+           <label for="email" class="block text-sm font-medium text-gray-700 mb-1">${t('page.auth.common.emailLabel')}</label>
+          <div class="mt-6 text-left flex justify-center">          
+            <input type="email" id="email" class="swal2-input !mt-0 !mb-0" style="max-width:360px;width:100%;display:block;margin:0 auto;" placeholder="${t('page.auth.common.emailPlaceholder')}" value="${savedEmail}" />
+          </div>
+          <div class="mt-1 text-left flex justify-center">
+            <label class="flex items-center" style="max-width:360px;width:100%;display:block;margin:0 auto;">
+              <input type="checkbox" id="rememberEmail" class="h-4 w-4 text-blue-600 border-gray-300 rounded" ${savedEmail ? 'checked' : ''} />
+              <span class="ml-2 text-xs text-gray-600">${t('page.auth.login.rememberId')}</span>
+            </label>
+          </div>
+        </div>
+      `,
+      width: 520,
+      padding: '2rem',
+      background: '#ffffff',
+      showCloseButton: true,
+      confirmButtonText: "로그인",
+      showDenyButton: true,
+      denyButtonText: t('page.auth.login.signup'),
+      showCancelButton: true,
+      cancelButtonText: t('page.auth.common.cancel'),
+      buttonsStyling: false,
+      customClass: {
+        popup: 'rounded-2xl shadow-xl',
+        title: 'hidden',
+        confirmButton:
+          'mt-6 inline-flex w-full justify-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none',
+        denyButton:
+          'mt-2 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50',
+        cancelButton:
+          'mt-2 inline-flex w-full justify-center rounded-md bg-gray-500 px-4 py-2 text-white hover:bg-gray-600',
+      },
+      preConfirm: () => {
+        const email = Swal.getPopup().querySelector('#email').value;
+        const remember = Swal.getPopup().querySelector('#rememberEmail').checked;
+        if (!email) {
+          Swal.showValidationMessage(t('page.auth.login.validation.emailRequired'));
+        }
+        return { email, remember };
+      },
+      didOpen: () => {
+        const popup = Swal.getPopup();
+        const input = popup.querySelector('#email');
+        const htmlContainer = Swal.getHtmlContainer();
+        if (htmlContainer) {
+          htmlContainer.style.overflowY = 'visible';
+          htmlContainer.style.overflowX = 'hidden';
+          htmlContainer.style.maxHeight = 'none';
+          htmlContainer.style.paddingRight = '0px';
+          htmlContainer.style.paddingLeft = '0px';
+        }
+        if (input) input.focus();
+      },
+    }).then(async result => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: t('page.auth.common.bioProgress'),
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+        });
+
+        try {
+          const { email, remember } = result.value;
+          const response = await authExecute({ email });
+          
+          // API returns the result directly if useAxiosApi returns response.data
+          // Checking structure based on likely response
+          const responseData = response.data || response;
+          const accessToken = responseData.accessToken || responseData.token;
+
+          if (accessToken) {
+            localStorage.setItem('accessToken', accessToken);
+            setIsAuthenticated(true);
+            
+            // Try to fetch user info if token is available
+            try {
+              const userResponse = await userExecute();
+              const userData = userResponse.data || userResponse;
+              
+              if (userData) {
+                if (userData.account) localStorage.setItem('walletAddress', userData.account);
+                if (userData.nickName) {
+                  localStorage.setItem('nickName', userData.nickName);
+                  setNickName(userData.nickName);
+                  const { setNickNameCookie } = await import('../../context/langCookie');
+                  setNickNameCookie(userData.nickName);
+                }
+                const userEmailFromApi = userData.email || userData.userEmail;
+                const emailToRemember = userEmailFromApi || email;
+                
+                if (remember) {
+                  localStorage.setItem('rememberedEmail', emailToRemember || '');
+                } else {
+                  localStorage.removeItem('rememberedEmail');
+                }
+              }
+            } catch (userError) {
+              console.warn('Failed to fetch user info:', userError);
+              // Fallback if user info fetch fails but login succeeded
+              if (remember) {
+                localStorage.setItem('rememberedEmail', email || '');
+              }
+            }
+
+            Swal.fire(t('page.auth.login.successTitle'), t('page.auth.login.successText'), 'success');
+          } else {
+            throw new Error('No access token received');
+          }
+        } catch (error) {
+          if (error.response && error.response.status === 404) {
+            Swal.fire({
+              title: t('page.auth.login.promptSignupTitle'),
+              text: t('page.auth.login.promptSignupText'),
+              icon: 'info',
+              showCancelButton: true,
+              confirmButtonText: t('page.auth.register.confirm'),
+              cancelButtonText: t('page.auth.common.cancel'),
+            }).then(async registerResult => {
+              if (registerResult.isConfirmed) {
+                await handleRegister(result.value.email);
+              }
+            });
+          } else {
+            Swal.fire(t('page.auth.login.failTitle'), t('page.auth.login.failText'), 'error');
+          }
+        }
+      } else if (result.isDenied) {
+        await handleRegister();
+      }
+    });
+  };
+
+  const handleRegister = async (prefillEmail = '') => {
+    Swal.fire({
+      title: '',
+      html: `
+        <div class="w-full max-w-md mx-auto">
+          <div class="mb-3 flex items-center justify-center">
+            <img src="/image/dataspace.jpg" alt="avataroad" class="h-16" />
+          </div>
+          <h2 class="text-2xl font-semibold text-gray-900 text-center">${t('page.auth.register.title')}</h2>
+          <p class="text-sm text-gray-500 text-center mt-1">${t('page.auth.register.desc')}</p>
+          <label for="email" class="block text-sm font-medium text-gray-700 mb-1">${t('page.auth.common.emailLabel')}</label>
+          <div class="mt-2 text-left flex justify-center">
+            <input type="email" id="email" class="swal2-input !mt-0 !mb-0" style="max-width:360px;width:100%;display:block;margin:0 auto;" placeholder="${t('page.auth.common.emailPlaceholder')}" value="${prefillEmail}" />
+          </div>
+          <label for="nickname" class="block text-sm font-medium text-gray-700 mb-1 mt-4">${t('page.auth.common.nicknameLabel')}</label>
+          <div class="mt-2 text-left flex justify-center">
+            <input type="text" id="nickname" class="swal2-input !mt-0 !mb-0" style="max-width:360px;width:100%;display:block;margin:0 auto;" placeholder="${t('page.auth.common.nicknamePlaceholder')}" />
+          </div>
+        </div>
+      `,
+      width: 520,
+      padding: '2rem',
+      background: '#ffffff',
+      showCloseButton: true,
+      buttonsStyling: false,
+      confirmButtonText: t('page.auth.register.confirm'),
+      showCancelButton: true,
+      cancelButtonText: t('page.auth.common.cancel'),
+      customClass: {
+        popup: 'rounded-2xl shadow-xl',
+        title: 'hidden',
+        confirmButton:
+          'mt-6 inline-flex w-full justify-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 focus:outline-none',
+        cancelButton:
+          'mt-2 inline-flex w-full justify-center rounded-md bg-gray-500 px-4 py-2 text-white hover:bg-gray-600',
+      },
+      didOpen: () => {
+        const popup = Swal.getPopup();
+        const htmlContainer = Swal.getHtmlContainer();
+        if (htmlContainer) {
+          htmlContainer.style.overflowY = 'visible';
+          htmlContainer.style.overflowX = 'hidden';
+          htmlContainer.style.maxHeight = 'none';
+          htmlContainer.style.paddingRight = '0px';
+          htmlContainer.style.paddingLeft = '0px';
+        }
+        const emailInput = popup.querySelector('#email');
+        const nicknameInput = popup.querySelector('#nickname');
+        if (nicknameInput) {
+          nicknameInput.setAttribute('pattern', '[a-zA-Z0-9]*');
+          nicknameInput.addEventListener('input', (e) => {
+            const value = e.target.value;
+            const filteredValue = value.replace(/[^a-zA-Z0-9]/g, '');
+            if (value !== filteredValue) {
+              e.target.value = filteredValue;
+            }
+          });
+          nicknameInput.addEventListener('paste', (e) => {
+            e.preventDefault();
+            const paste = (e.clipboardData || window.clipboardData).getData('text');
+            const filteredPaste = paste.replace(/[^a-zA-Z0-9]/g, '');
+            e.target.value = filteredPaste;
+          });
+        }
+        
+        if (prefillEmail && nicknameInput) {
+          nicknameInput.focus();
+        } else if (emailInput) {
+          emailInput.focus();
+        }
+      },
+      preConfirm: () => {
+        const email = Swal.getPopup().querySelector('#email').value;
+        const nickName = Swal.getPopup().querySelector('#nickname').value;
+        if (!email || !nickName) {
+          Swal.showValidationMessage(t('page.auth.register.validation.bothRequired'));
+        }
+        return { email, nickName };
+      },
+    }).then(async result => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: t('page.auth.common.bioProgress'),
+          allowOutsideClick: false,
+          didOpen: () => {
+            Swal.showLoading();
+          },
+        });
+
+        try {
+          const { email, nickName } = result.value;
+          const response = await registerExecute({ email, nickName });
+          
+          const responseData = response.data || response;
+          const accessToken = responseData.accessToken || responseData.token;
+
+          if (accessToken) {
+            localStorage.setItem('accessToken', accessToken);
+            localStorage.setItem('nickName', nickName);
+            setIsAuthenticated(true);
+            setNickName(nickName);
+            Swal.fire(
+              t('page.auth.register.successTitle'),
+              t('page.auth.register.successText'),
+              'success'
+            );
+          } else {
+             throw new Error('No access token received');
+          }
+        } catch (error) {
+          Swal.fire(
+            t('page.auth.register.failTitle'),
+            (error && error.response && error.response.data && error.response.data.resultMessage) || '',
+            'error'
+          );
+        }
+      } else if (result.dismiss === Swal.DismissReason.cancel) {
+        await handleLogin();
+      }
+    });
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setNickName('');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('nickName');
+    localStorage.removeItem('walletAddress');
+    
+    const isAvataroad = /\.avataroad\.com$/.test(window.location.hostname);
+    const cookieParts = [
+      'ar_nickname=',
+      'Path=/',
+      'Max-Age=0',
+      'SameSite=Lax',
+    ];
+    if (isAvataroad) {
+      cookieParts.push('Domain=.avataroad.com');
+    }
+    if (window.location.protocol === 'https:') {
+      cookieParts.push('Secure');
+    }
+    document.cookie = cookieParts.join('; ');
+    
+    window.location.href = '/';
+  };
+
+  return (
+    <div className="w-full bg-white border-b border-gray-300">
+      <div className="top_header flex items-center justify-between mx-auto w-[1280px] h-24">
+        <div className="flex items-center gap-4">
+          <a href="/">
+            <img
+              src="/image/dataspace.jpg"
+              title="avataroad"
+              alt="avataroad logo"
+              className="ml-6 h-20 w-128"
+            />
+          </a>
+          {isAuthenticated && nickName && (
+            <span className="text-neutral-800 text-base font-nanum-square-neo font-semibold">
+              {nickName} {t('page.header.welcome')}
+            </span>
+          )}
+        </div>
+
+        <div className="top_header_link flex items-center">
+          <a
+            href="/market"
+            className="ml-4 text-neutral-800 text-base font-nanum-square-neo"
+          >
+            {navText.market}
+          </a>
+          <a
+            href="/mypage/market/purchase"
+            className="ml-4 text-neutral-800 text-base font-nanum-square-neo"
+          >
+            {navText.mypage}
+          </a>
+          {isAuthenticated ? (
+            <button
+              type="button"
+              className="ml-4 text-neutral-800 text-base font-nanum-square-neo"
+              onClick={handleLogout}
+            >
+              {navText.logout}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="bg-white w-30 h-12 px-5 rounded-full justify-center items-center flex"
+              onClick={handleLogin}
+            >
+              <div className="text-black text-base font-nanum-square-neo">
+                지갑 로그인
+              </div>
+            </button>
+          )}
+       
+        </div>
+      </div>
+    </div>
+  );
+}
+ 
+

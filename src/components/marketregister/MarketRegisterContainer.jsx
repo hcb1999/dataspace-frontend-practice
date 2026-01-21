@@ -23,10 +23,10 @@ const MarketRegisterContainer = () => {
     stock: '',
     saleStartDate: '',
     saleEndDate: '',
-    marketVcType: ''
+    marketScType: ''
   });
 
-  // 사용자의 판매 데이터를 가져와서 사용된 marketVcType 확인
+  // 사용자의 판매 데이터를 가져와서 사용된 marketScType 확인
   useEffect(() => {
     const fetchUserAssets = async () => {
       try {
@@ -49,21 +49,21 @@ const MarketRegisterContainer = () => {
           }
         } while (currentPage <= totalPage);
         
-        // 사용된 marketVcType 추출
+        // 사용된 marketScType 추출
         const usedTypes = allItems
-          .map(item => item.marketVcType)
+          .map(item => item.marketScType)
           .filter(type => type !== null && type !== undefined && type !== '')
           .map(type => {
             const numType = Number(type);
-            // 5~10 범위의 값만 유효
-            if (numType >= 5 && numType <= 10) {
+            // 2 범위의 값만 유효 (현재는 하드코딩된 값 "2"만 사용)
+            if (numType === 2) {
               return numType;
             }
             return null;
           })
           .filter(type => type !== null);
         
-        console.log('사용된 marketVcType:', usedTypes);
+        console.log('사용된 marketScType:', usedTypes);
         setUsedVcTypes(usedTypes);
       } catch (err) {
         console.error('사용자 판매 데이터 가져오기 실패:', err);
@@ -74,13 +74,6 @@ const MarketRegisterContainer = () => {
     fetchUserAssets();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // 사용 가능한 marketVcType 찾기
-  const getAvailableVcType = () => {
-    const validTypes = [5, 6, 7, 8, 9, 10];
-    const available = validTypes.find(type => !usedVcTypes.includes(type));
-    return available ? String(available) : null;
-  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -138,7 +131,7 @@ const MarketRegisterContainer = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.marketVcType) {
+    if (!formData.marketScType) {
       Swal.fire({
         icon: 'error',
         title: '등록 불가',
@@ -148,8 +141,8 @@ const MarketRegisterContainer = () => {
       return;
     }
     
-    // 선택한 marketVcType이 이미 사용 중인지 확인
-    if (usedVcTypes.includes(Number(formData.marketVcType))) {
+    // 선택한 marketScType이 이미 사용 중인지 확인
+    if (usedVcTypes.includes(Number(formData.marketScType))) {
       Swal.fire({
         icon: 'error',
         title: '등록 불가',
@@ -200,7 +193,7 @@ const MarketRegisterContainer = () => {
       { field: 'stock', name: '보유 수량' },
       { field: 'saleStartDate', name: '판매 시작일' },
       { field: 'saleEndDate', name: '판매 종료일' },
-      { field: 'marketVcType', name: '증명 타입' }
+      { field: 'marketScType', name: '증명 타입' }
     ];
     
     for (const { field, name } of requiredFields) {
@@ -231,7 +224,7 @@ const MarketRegisterContainer = () => {
         issueCnt: Number(formData.stock),
         startDttm: formData.saleStartDate ? new Date(formData.saleStartDate).toISOString() : new Date().toISOString(),
         endDttm: formData.saleEndDate ? new Date(formData.saleEndDate).toISOString() : new Date().toISOString(),
-        marketVcType: formData.marketVcType
+        marketScType: formData.marketScType
       };
 
       console.log('Register Payload:', payload);
@@ -348,21 +341,16 @@ const MarketRegisterContainer = () => {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">증명 타입 <span className="text-red-500">*</span></label>
               <select
-                name="marketVcType"
-                value={formData.marketVcType}
+                name="marketScType"
+                value={formData.marketScType}
                 onChange={handleChange}
                 required
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               >
                 <option value="">증명 타입을 선택하세요</option>
-                <option value="5" disabled={usedVcTypes.includes(5)}>췌장암 Imputation 데이터</option>
-                <option value="6" disabled={usedVcTypes.includes(6)}>장애인 건강검진 이용 접근 시간비용 분석</option>
-                <option value="7" disabled={usedVcTypes.includes(7)}>사람 행동 인식 로봇 자율 행동 데이터</option>
-                <option value="8" disabled={usedVcTypes.includes(8)}>스마트불편신고 상위 지역</option>
-                <option value="9" disabled={usedVcTypes.includes(9)}>상가(상권)정보</option>
-                <option value="10" disabled={usedVcTypes.includes(10)}>사업자등록정보 진위확인 및 상태조회 서비스</option>
+                <option value="2" disabled={usedVcTypes.includes(2)}>데이터증명</option>
               </select>
-              {formData.marketVcType && usedVcTypes.includes(Number(formData.marketVcType)) && (
+              {formData.marketScType && usedVcTypes.includes(Number(formData.marketScType)) && (
                 <p className="mt-1 text-sm text-red-600">이미 사용 중인 증명 타입입니다.</p>
               )}
             </div>

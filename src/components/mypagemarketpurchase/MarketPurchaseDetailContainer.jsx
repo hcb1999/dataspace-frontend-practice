@@ -8,6 +8,7 @@ import useAxiosApi from '../../hooks/useAxiosApi';
 import Swal from 'sweetalert2';
 import axios from 'axios';
 import environmentConfig from '../../config/config';
+import { getTransactionUrl, getContractUrl, getAccountUrl } from '../../utils/ledgerUrl';
 
 const MarketPurchaseDetailContainer = () => {
   const { purchaseNo } = useParams();
@@ -364,15 +365,18 @@ const MarketPurchaseDetailContainer = () => {
           </div>
            {/* 공용 체인 섹션 */}
             <AssetChainSections
-              tokenInfo={detailData?.tokenInfo || (vcData ? [{
+              tokenInfo={detailData?.tokenInfo?.map(token => ({
+                ...token,
+                ownerAccountUrl: getAccountUrl(token.ownerAccount)
+              })) || (vcData ? [{
                 tokenId: vcData.dataId || '-',
                 ownerAccount: vcData.registrantWalletAddress || detailData?.saleAccount || '-',
-                ownerAccountUrl: detailData?.saleAccountUrl || (vcData.registrantWalletAddress ? `http://72.155.88.116:6100/accounts/${vcData.registrantWalletAddress}` : undefined)
+                ownerAccountUrl: getAccountUrl(vcData.registrantWalletAddress || detailData?.saleAccount)
               }] : undefined)}
               transactionId={detailData?.nftTxId || vcData?.txId}
-              transactionLink={detailData?.nftTxIdUrl || (vcData?.txId ? `http://72.155.88.116:6100/transactions/${vcData.txId}` : undefined)}
+              transactionLink={getTransactionUrl(detailData?.nftTxId || vcData?.txId)}
               contractAddress={detailData?.nftContractAddress || vcData?.contractAddress}
-              contractLink={detailData?.nftContractAddressUrl || (vcData?.contractAddress ? `http://72.155.88.116:6100/accounts/${vcData.contractAddress}` : undefined)}
+              contractLink={getContractUrl(detailData?.nftContractAddress || vcData?.contractAddress)}
             />
 
             

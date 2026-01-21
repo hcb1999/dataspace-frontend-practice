@@ -80,7 +80,9 @@ const MyMarketPurchaseContainer = ({
               <h2 className="text-2xl mb-5">{t(titleKey)}</h2>
             </div>
 
-            <SearchSection onSearch={handleSearchChange} />
+            <div className="hidden">
+              <SearchSection onSearch={handleSearchChange} />
+            </div>
 
             {sellData?.data?.totalCount !== undefined && (
               <div className="mb-4 text-sm text-gray-600">

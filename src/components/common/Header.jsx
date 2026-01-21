@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import useAxiosApi from '../../hooks/useAxiosApi';
 import Swal from 'sweetalert2';
 import { t, setLang, getLang, onLangChange } from '../../translation';
+import QRCode from 'qrcode';
+import environmentConfig from '../../config/config';
 
 export default function Header() {
   const [lang, setLangState] = useState(getLang());
@@ -19,6 +21,8 @@ export default function Header() {
   const { execute: authExecute } = useAxiosApi('/auth', 'POST');
   const { execute: registerExecute } = useAxiosApi('/auth/register', 'POST');
   const { execute: userExecute } = useAxiosApi('/user', 'GET');
+  const { execute: qrCreateExecute } = useAxiosApi('/auth/qr/sessions', 'POST');
+  const { execute: qrStatusExecute } = useAxiosApi('/auth/qr/sessions', 'GET');
 
   const navText = {
     goods: t('page.header.nav.goods'),
@@ -30,6 +34,160 @@ export default function Header() {
     kpopWorld: t('page.header.nav.kpopWorld'),
     etriWallet: t('page.header.nav.etriWallet'),
     login: t('page.header.nav.login'),
+  };
+
+  const handleQrLogin = async () => {
+    let pollTimer = null;
+    let remainTimer = null;
+
+    const stopPolling = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    };
+    const stopRemainTimer = () => {
+      if (remainTimer) {
+        clearInterval(remainTimer);
+        remainTimer = null;
+      }
+    };
+
+    try {
+      Swal.fire({
+        title: 'QR 로그인 준비 중...',
+        allowOutsideClick: false,
+        didOpen: () => Swal.showLoading(),
+      });
+
+      const created = await qrCreateExecute({});
+      const session = created?.data || created;
+      const sessionId = session?.sessionId;
+      const expiresAt = session?.expiresAt;
+
+      if (!sessionId) throw new Error('No sessionId received');
+
+      // 앱에서 최소 sessionId만 추출해도 되도록 JSON으로 인코딩
+      const qrValue = JSON.stringify({
+        type: 'dataspace-qr-login',
+        v: 1,
+        sessionId,
+        apiUrl: environmentConfig.apiUrl,
+      });
+
+      const qrDataUrl = await QRCode.toDataURL(qrValue, { margin: 1, width: 260 });
+
+      const formatRemain = (ms) => {
+        if (!ms || ms <= 0) return '0:00';
+        const s = Math.floor(ms / 1000);
+        const m = Math.floor(s / 60);
+        const r = (s % 60).toString().padStart(2, '0');
+        return `${m}:${r}`;
+      };
+
+      const qrResult = await Swal.fire({
+        title: '',
+        html: `
+          <div class="w-full max-w-md mx-auto">
+            <div class="mb-3 flex items-center justify-center">
+              <img src="/image/dataspace.jpg" alt="dataspace" class="h-14" />
+            </div>
+            <h2 class="text-2xl font-semibold text-gray-900 text-center">QR 로그인</h2>
+            <p class="text-sm text-gray-500 text-center mt-1">앱에서 QR을 스캔하면 자동으로 로그인됩니다.</p>
+            <div class="mt-5 flex justify-center">
+              <img src="${qrDataUrl}" alt="qr" class="rounded-lg border border-gray-200" />
+            </div>
+            <div class="mt-3 text-xs text-gray-500 text-center">
+              만료까지 <span id="qrRemain" class="font-semibold text-gray-700">${formatRemain((expiresAt || 0) - Date.now())}</span>
+            </div>
+          </div>
+        `,
+        width: 520,
+        padding: '2rem',
+        background: '#ffffff',
+        showConfirmButton: false,
+        showCloseButton: true,
+        showCancelButton: true,
+        cancelButtonText: t('page.auth.common.cancel'),
+        buttonsStyling: false,
+        customClass: {
+          popup: 'rounded-2xl shadow-xl',
+          title: 'hidden',
+          cancelButton:
+            'mt-6 inline-flex w-full justify-center rounded-md bg-gray-500 px-4 py-2 text-white hover:bg-gray-600',
+        },
+        didOpen: () => {
+          const remainEl = Swal.getPopup()?.querySelector('#qrRemain');
+
+          const updateRemain = () => {
+            const remain = (expiresAt || 0) - Date.now();
+            if (remainEl) remainEl.textContent = formatRemain(remain);
+          };
+          updateRemain();
+          remainTimer = setInterval(updateRemain, 500);
+
+          pollTimer = setInterval(async () => {
+            try {
+              const statusRes = await qrStatusExecute({}, false, `/auth/qr/sessions/${sessionId}`);
+              const statusData = statusRes?.data || statusRes;
+
+              if (statusData?.status === 'approved' && statusData?.accessToken) {
+                stopPolling();
+                stopRemainTimer();
+
+                localStorage.setItem('accessToken', statusData.accessToken);
+                setIsAuthenticated(true);
+
+                // nickName은 status에 있으면 우선 반영, 없으면 /user에서 가져옴
+                if (statusData.nickName) {
+                  localStorage.setItem('nickName', statusData.nickName);
+                  setNickName(statusData.nickName);
+                }
+
+                try {
+                  const userResponse = await userExecute();
+                  const userData = userResponse.data || userResponse;
+                  if (userData?.nickName) {
+                    localStorage.setItem('nickName', userData.nickName);
+                    setNickName(userData.nickName);
+                    const { setNickNameCookie } = await import('../../context/langCookie');
+                    setNickNameCookie(userData.nickName);
+                  }
+                  if (userData?.account) localStorage.setItem('walletAddress', userData.account);
+                } catch (e) {
+                  // ignore - token 저장만으로도 로그인 상태는 유지됨
+                }
+
+                Swal.fire('로그인 성공', 'QR 로그인이 완료되었습니다.', 'success');
+              } else if (statusData?.status === 'expired') {
+                stopPolling();
+                stopRemainTimer();
+                Swal.fire('만료됨', 'QR 로그인 세션이 만료되었습니다. 다시 시도해주세요.', 'warning');
+              }
+            } catch (e) {
+              // 일시적 네트워크 오류는 무시하고 계속 폴링
+            }
+          }, 2000);
+        },
+        willClose: () => {
+          stopPolling();
+          stopRemainTimer();
+        },
+      });
+
+      // QR 로그인 취소/닫기 시: 다시 로그인(이메일) 창으로 복귀
+      if (
+        qrResult.dismiss === Swal.DismissReason.cancel ||
+        qrResult.dismiss === Swal.DismissReason.close ||
+        qrResult.dismiss === Swal.DismissReason.esc
+      ) {
+        await handleLogin();
+      }
+    } catch (err) {
+      stopPolling();
+      stopRemainTimer();
+      Swal.fire('오류', 'QR 로그인 준비 중 문제가 발생했습니다.', 'error');
+    }
   };
 
   const handleLogin = async () => {
@@ -52,6 +210,11 @@ export default function Header() {
               <input type="checkbox" id="rememberEmail" class="h-4 w-4 text-blue-600 border-gray-300 rounded" ${savedEmail ? 'checked' : ''} />
               <span class="ml-2 text-xs text-gray-600">${t('page.auth.login.rememberId')}</span>
             </label>
+          </div>
+          <div class="mt-4 flex justify-center">
+            <button type="button" id="qrLoginBtn" class="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50" style="max-width:360px;">
+              QR 로그인
+            </button>
           </div>
         </div>
       `,
@@ -86,6 +249,7 @@ export default function Header() {
       didOpen: () => {
         const popup = Swal.getPopup();
         const input = popup.querySelector('#email');
+        const qrBtn = popup.querySelector('#qrLoginBtn');
         const htmlContainer = Swal.getHtmlContainer();
         if (htmlContainer) {
           htmlContainer.style.overflowY = 'visible';
@@ -95,6 +259,12 @@ export default function Header() {
           htmlContainer.style.paddingLeft = '0px';
         }
         if (input) input.focus();
+        if (qrBtn) {
+          qrBtn.addEventListener('click', async () => {
+            Swal.close();
+            await handleQrLogin();
+          });
+        }
       },
     }).then(async result => {
       if (result.isConfirmed) {

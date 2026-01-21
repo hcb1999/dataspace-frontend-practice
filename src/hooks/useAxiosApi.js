@@ -9,11 +9,12 @@ const axiosInstance = axios.create({
 });
 
 const useAxiosApi = (endpoint, method = 'GET', options = {}) => {
-  const execute = async (params = {}, isMultipart = false) => {
+  // overrideEndpoint를 넘기면 동적으로 URL을 바꿔 호출할 수 있다 (기존 호출부는 영향 없음)
+  const execute = async (params = {}, isMultipart = false, overrideEndpoint = null) => {
     try {
       const token = localStorage.getItem('accessToken');
       const requestConfig = {
-        url: endpoint,
+        url: overrideEndpoint || endpoint,
         method,
         headers: {
           'Content-Type': isMultipart ? 'multipart/form-data' : 'application/json',

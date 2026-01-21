@@ -11,6 +11,7 @@ import AssetVerificationSection from '../common/AssetVerificationSection';
 import axios from 'axios';
 import environmentConfig from '../../config/config';
 import Swal from 'sweetalert2';
+import { getTransactionUrl, getContractUrl, getAccountUrl } from '../../utils/ledgerUrl';
 
 const MarketDetailContainer = () => {
   const { marketNo } = useParams();
@@ -158,15 +159,18 @@ const MarketDetailContainer = () => {
           isLoadingVc={isLoadingVc}
         />
         <AssetChainSections
-          tokenInfo={assetData?.data?.tokenInfo}
+          tokenInfo={assetData?.data?.tokenInfo?.map(token => ({
+            ...token,
+            ownerAccountUrl: getAccountUrl(token.ownerAccount)
+          }))}
           transactionId={assetData?.data?.nftTxId}
-          transactionLink={assetData?.data?.nftTxIdUrl}
+          transactionLink={getTransactionUrl(assetData?.data?.nftTxId)}
           contractAddress={assetData?.data?.nftContractAddress}
-          contractLink={assetData?.data?.nftContractAddressUrl}
+          contractLink={getContractUrl(assetData?.data?.nftContractAddress)}
         />
         <ProviderSection
           providerAddress={assetData?.data?.saleAccount}
-          providerLink={assetData?.data?.saleAccountUrl}
+          providerLink={getAccountUrl(assetData?.data?.saleAccount)}
           option={'판매자'}
         />
       </div>

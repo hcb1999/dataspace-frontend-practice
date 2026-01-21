@@ -100,14 +100,14 @@ const MyPageInfoContainer = () => {
   };
 
   const handleConnectSMCWallet = () => {
-    window.open('http://20.39.197.109:3000/sc/accounts', '_blank', 'noopener,noreferrer');
+    window.open('http://4.230.80.207:3000/sc/accounts', '_blank', 'noopener,noreferrer');
   };
 
   const handleConnectDIDUser = () => {
     const orgId = data?.data?.orgId;
     const url = orgId 
-      ? `http://20.39.197.109:3000/did/organization/detail/${orgId}`
-      : 'http://20.39.197.109:3000/did/organization/detail';
+      ? `http://4.230.80.207:3000/did/organization/detail/${orgId}`
+      : 'http://4.230.80.207:3000/did/organization/detail';
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
@@ -167,7 +167,7 @@ const MyPageInfoContainer = () => {
                       <div className="p-2">
                         {data?.data?.account ? (
                           <a
-                            href={`http://20.39.197.109:3000/sc/accounts/${data?.data?.account}`}
+                            href={`http://4.230.80.207:3000/sc/accounts/${data?.data?.account}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-blue-500 underline break-all cursor-pointer"

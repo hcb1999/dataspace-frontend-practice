@@ -26,7 +26,9 @@ const MarketContainer = () => {
             <div className="flex justify-between">
               <h2 className="text-2xl mb-5">{t('page.market.title')}</h2>
             </div>
-            <MarketSearchSection onSearch={handleSearchChange} />
+            <div className="hidden">
+              <MarketSearchSection onSearch={handleSearchChange} />
+            </div>
             <CardSection searchCondition={searchCondition} />
           </section>
         </section>

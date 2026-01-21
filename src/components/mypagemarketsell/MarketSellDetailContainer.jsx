@@ -7,6 +7,7 @@ import AssetVerificationSection from '../common/AssetVerificationSection';
 import useAxiosApi from '../../hooks/useAxiosApi';
 import axios from 'axios';
 import environmentConfig from '../../config/config';
+import { getTransactionUrl, getContractUrl, getAccountUrl } from '../../utils/ledgerUrl';
 
 const MarketSellDetailContainer = () => {
   const { marketNo } = useParams();
@@ -959,11 +960,14 @@ const MarketSellDetailContainer = () => {
           </div>
           {detailData && (
             <AssetChainSections
-              tokenInfo={detailData.tokenInfo}
+              tokenInfo={detailData.tokenInfo?.map(token => ({
+                ...token,
+                ownerAccountUrl: getAccountUrl(token.ownerAccount)
+              }))}
               transactionId={detailData.nftTxId}
-              transactionLink={detailData.nftTxIdUrl}
+              transactionLink={getTransactionUrl(detailData.nftTxId)}
               contractAddress={detailData.nftContractAddress}
-              contractLink={detailData.nftContractAddressUrl}
+              contractLink={getContractUrl(detailData.nftContractAddress)}
             />
           )}
         </section>

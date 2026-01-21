@@ -33,9 +33,14 @@ yarn-error.log*
 .cache/
 .eslintcache
 *.cache
+node_modules/.cache
 
 # Package manager
 package-lock.json
+.package-lock.json
 
 # Portfolio files
 *_PORTFOLIO*.md
+
+# fsevents (macOS)
+node_modules/fsevents

@@ -211,7 +211,7 @@ export default function Header() {
               <span class="ml-2 text-xs text-gray-600">${t('page.auth.login.rememberId')}</span>
             </label>
           </div>
-          <div class="mt-4 flex justify-center">
+          <div class="mt-4 flex justify-center" style="display:none">
             <button type="button" id="qrLoginBtn" class="inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-gray-700 hover:bg-gray-50" style="max-width:360px;">
               QR 로그인
             </button>

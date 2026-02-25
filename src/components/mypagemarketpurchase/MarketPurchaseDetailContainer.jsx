@@ -377,9 +377,7 @@ const MarketPurchaseDetailContainer = () => {
               transactionLink={getTransactionUrl(detailData?.nftTxId || vcData?.txId)}
               contractAddress={detailData?.nftContractAddress || vcData?.contractAddress}
               contractLink={getContractUrl(detailData?.nftContractAddress || vcData?.contractAddress)}
-            />
-
-            
+            />          
         </section>
         
       </section>

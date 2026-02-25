@@ -229,23 +229,59 @@ const MarketRegisterContainer = () => {
 
       console.log('Register Payload:', payload);
 
-      const response = await registerMarket(payload, true); // multipart/form-data
+      // NFT 발급 중 메시지 표시
+      Swal.fire({
+        title: '데이터 발급 진행 중...',
+        html: `
+          <div class="text-center">
+            <div class="mb-4">
+              <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+            <p class="text-gray-700 font-medium mb-2">NFT 발급 중입니다</p>
+            <p class="text-gray-500 text-sm mb-2">블록체인에 데이터를 등록하고 있습니다</p>
+            <p class="text-gray-500 text-sm">잠시만 기다려주세요...(약 15초 소요)</p>
+          </div>
+        `,
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: () => {
+          Swal.showLoading();
+        },
+      });
+
+      // Swal이 완전히 렌더링되도록 약간의 지연
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // API 호출하면서 로딩 표시 (15초 최소 대기)
+      const apiPromise = registerMarket(payload, true); // multipart/form-data
+      await new Promise(resolve => setTimeout(resolve, 15000));
+      const response = await apiPromise;
       
       if (response) {
-         Swal.fire({
-           title: '등록 성공',
-           text: '데이터가 성공적으로 등록되었습니다. 잠시만 기다려주세요...',
-           icon: 'success',
-           allowOutsideClick: false,
-           didOpen: () => {
-             Swal.showLoading();
-           }
+         // VC 발급 중 메시지로 변경
+         Swal.update({
+           html: `
+             <div class="text-center">
+               <div class="mb-4">
+                 <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+               </div>
+               <p class="text-gray-700 font-medium mb-2">VC 발급 중입니다</p>
+               <p class="text-gray-500 text-sm mb-2">데이터 등록증명서를 발급하고 있습니다</p>
+               <p class="text-gray-500 text-sm">잠시만 기다려주세요...(약 10초 소요)</p>
+             </div>
+           `
          });
          
-         // 7초 대기
-         await new Promise(resolve => setTimeout(resolve, 7000));
+         // VC 발급 5초 대기
+         await new Promise(resolve => setTimeout(resolve, 10000));
          
-         Swal.close();
+         Swal.fire({
+           title: '등록 성공',
+           text: '데이터가 성공적으로 등록되었습니다.',
+           icon: 'success',
+           confirmButtonText: '확인'
+         });
+         
          navigate('/market'); // Redirect to market list
       }
     } catch (error) {

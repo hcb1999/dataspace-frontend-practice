@@ -429,8 +429,19 @@ export default function Header() {
     }).then(async result => {
       if (result.isConfirmed) {
         Swal.fire({
-          title: t('page.auth.common.bioProgress'),
+          title: '회원가입 진행 중...',
+          html: `
+            <div class="text-center">
+              <div class="mb-4">
+                <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              </div>
+              <p class="text-gray-700 font-medium mb-2">DID 발급 중입니다</p>
+              <p class="text-gray-500 text-sm mb-2">디지털 신원증명서를 발급하고 있습니다</p>
+              <p class="text-gray-500 text-sm">잠시만 기다려주세요...(25초 소요)</p>
+            </div>
+          `,
           allowOutsideClick: false,
+          showConfirmButton: false,
           didOpen: () => {
             Swal.showLoading();
           },
@@ -438,6 +449,23 @@ export default function Header() {
 
         try {
           const { email, nickName } = result.value;
+          
+          // DID 발급 중 메시지 업데이트
+          setTimeout(() => {
+            Swal.update({
+              html: `
+                <div class="text-center">
+                  <div class="mb-4">
+                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                  </div>
+                  <p class="text-gray-700 font-medium mb-2">SMC 지갑 생성 중입니다</p>
+                  <p class="text-gray-500 text-sm mb-2">블록체인 지갑을 생성하고 있습니다</p>
+                  <p class="text-gray-500 text-sm">거의 완료되었습니다...</p>
+                </div>
+              `
+            });
+          }, 10000); // 15초 후 메시지 변경
+          
           const response = await registerExecute({ email, nickName });
           
           const responseData = response.data || response;

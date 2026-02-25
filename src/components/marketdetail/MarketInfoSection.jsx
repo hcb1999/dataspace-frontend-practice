@@ -180,35 +180,45 @@ const AssetInfoSection = ({ assetData, marketNo, onShowCertificate, isLoadingVc 
     try {
       setIsPurchasing(true);
       
+      // NFT 이전 중 메시지 표시
       Swal.fire({
-        title: '결제 진행 중',
-        text: '결제를 처리하고 있습니다...',
+        title: '결제 진행 중...',
+        html: `
+          <div class="text-center">
+            <div class="mb-4">
+              <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+            <p class="text-gray-700 font-medium mb-2">NFT 이전 중입니다</p>
+            <p class="text-gray-500 text-sm mb-2">블록체인에서 NFT를 이전하고 있습니다</p>
+            <p class="text-gray-500 text-sm">잠시만 기다려주세요...(약 15초 소요)</p>
+          </div>
+        `,
         allowOutsideClick: false,
+        showConfirmButton: false,
         didOpen: () => {
           Swal.showLoading();
-        }
+        },
       });
 
-      const response = await purchaseExecute({
+      // Swal이 완전히 렌더링되도록 약간의 지연
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      // 구매 API 호출 후 8초 동안 로딩 표시 (프론트 처리)
+      const apiPromise = purchaseExecute({
         marketNo: parseInt(marketNo),
         purchaseCnt: purchaseCnt
       });
+      await new Promise(resolve => setTimeout(resolve, 25000));
+      const response = await apiPromise;
 
       if (response && response.resultCode === 200) {
         Swal.fire({
           title: '결제 완료',
-          text: '결제가 성공적으로 완료되었습니다. 잠시만 기다려주세요...',
+          text: '결제가 성공적으로 완료되었습니다.',
           icon: 'success',
-          allowOutsideClick: false,
-          didOpen: () => {
-            Swal.showLoading();
-          }
+          confirmButtonText: '확인'
         });
         
-        // 9초 대기
-        await new Promise(resolve => setTimeout(resolve, 9000));
-        
-        Swal.close();
         // 마이페이지 구매데이터로 이동
         navigate('/mypage/market/purchase');
       } else {
@@ -329,7 +339,7 @@ const AssetInfoSection = ({ assetData, marketNo, onShowCertificate, isLoadingVc 
           <div className="flex items-center gap-4">
             <label className="text-sm font-medium text-gray-700">
               구매 개수:
-            </label>
+            </label>  
             <div className="flex items-center gap-2">
               <button
                 type="button"
